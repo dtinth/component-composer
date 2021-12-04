@@ -1,65 +1,96 @@
 <script lang="ts">
-  import logo from './assets/svelte.png'
-  import Counter from './lib/Counter.svelte'
+  import type { ComponentComposerSchema } from './schema'
+  import type {
+    GridDataProviderParams,
+    GridDataProviderCallback,
+  } from '@vaadin/grid'
+
+  import { testUi } from './test-data'
+  import { parse } from './TextRepresentation'
+
+  let iframe: HTMLIFrameElement
+
+  let availableComponents = []
+  let comboBox: any
+  let grid: any
+
+  $: {
+    if (comboBox) {
+      comboBox.items = availableComponents
+    }
+  }
+  $: {
+    if (grid) {
+      grid.dataProvider = dataProvider
+      console.log(grid)
+    }
+  }
+
+  function dataProvider(
+    params: GridDataProviderParams<any>,
+    callback: GridDataProviderCallback<any>,
+  ) {
+    // const { people, hierarchyLevelSize } = await getPeople({
+    //   count: params.pageSize,
+    //   startIndex: params.page * params.pageSize,
+    //   managerId: params.parentItem ? params.parentItem.id : null,
+    // })
+
+    callback([{ name: 'Eiei', eiei: 1 }], 1)
+  }
+
+  function onMessage(e: MessageEvent) {
+    if (!e.data) return
+    if (typeof e.data !== 'object') return
+    switch (e.data.type) {
+      case 'component-composer-schema': {
+        const schema = e.data.payload as ComponentComposerSchema
+        availableComponents = Object.keys(schema.components)
+          .filter((c) => c !== 'UserInterface')
+          .map((c) => ({ name: c }))
+        iframe.contentWindow.postMessage(
+          {
+            type: 'component-composer-ui',
+            payload: parse(testUi),
+          },
+          '*',
+        )
+        break
+      }
+    }
+  }
 </script>
 
-<main>
-  <img src={logo} alt="Svelte Logo" />
-  <h1>Hello Typescript!</h1>
+<svelte:window on:message={onMessage} />
 
-  <Counter />
+<div class="preview">
+  <iframe
+    src="http://localhost:4041"
+    title="Design system"
+    bind:this={iframe}
+  />
+</div>
+<div class="editor">
+  <vaadin-grid bind:this={grid}>
+    <vaadin-grid-tree-column path="name" item-has-children-path="eiei" />
+  </vaadin-grid>
 
-  <p>
-    Visit <a href="https://svelte.dev">svelte.dev</a> to learn how to build Svelte
-    apps.
-  </p>
-
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme">SvelteKit</a> for
-    the officially supported framework, also powered by Vite!
-  </p>
-</main>
+  <vaadin-combo-box
+    placeholder="Add component…"
+    item-value-path="name"
+    item-label-path="name"
+    bind:this={comboBox}
+  />
+</div>
 
 <style>
-  :root {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  .preview {
+    position: absolute;
+    inset: 8px 8px 8px 320px;
   }
-
-  main {
-    text-align: center;
-    padding: 1em;
-    margin: 0 auto;
-  }
-
-  img {
-    height: 16rem;
-    width: 16rem;
-  }
-
-  h1 {
-    color: #ff3e00;
-    text-transform: uppercase;
-    font-size: 4rem;
-    font-weight: 100;
-    line-height: 1.1;
-    margin: 2rem auto;
-    max-width: 14rem;
-  }
-
-  p {
-    max-width: 14rem;
-    margin: 1rem auto;
-    line-height: 1.35;
-  }
-
-  @media (min-width: 480px) {
-    h1 {
-      max-width: none;
-    }
-
-    p {
-      max-width: none;
-    }
+  .editor {
+    position: absolute;
+    inset: 8px auto 8px 8px;
+    width: 304px;
   }
 </style>
